@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
-  normalizeExtract,
-  normalizeScholar,
-  normalizeWeb,
-  normalizeX,
-  normalizeYouTube,
+  normalizeAisaScholar,
+  normalizeAisaX,
+  normalizeAisaYouTube,
+  normalizeTavilyExtract,
+  normalizeTavilySearch,
 } from '../src/normalize.ts'
 import { TEST_CONFIG } from './helpers.ts'
 
 describe('AIsa response normalization', () => {
   it('normalizes Tavily web results and preserves the body request ID', () => {
-    const value = normalizeWeb({
+    const value = normalizeTavilySearch('aisa', {
       data: {
         request_id: 'web-body-id',
         answer: 'A grounded answer',
@@ -33,6 +33,7 @@ describe('AIsa response normalization', () => {
     }, 1, TEST_CONFIG)
 
     expect(value).toEqual({
+      provider: 'aisa',
       source: 'web',
       requestId: 'web-body-id',
       answer: 'A grounded answer',
@@ -49,7 +50,7 @@ describe('AIsa response normalization', () => {
   })
 
   it('normalizes X posts without retaining provider-specific fields', () => {
-    const value = normalizeX({
+    const value = normalizeAisaX({
       data: {
         has_next_page: true,
         next_cursor: 'cursor',
@@ -70,6 +71,7 @@ describe('AIsa response normalization', () => {
     }, 5, TEST_CONFIG)
 
     expect(value).toEqual({
+      provider: 'aisa',
       source: 'x',
       requestId: 'x-request-id',
       truncated: true,
@@ -93,7 +95,7 @@ describe('AIsa response normalization', () => {
   })
 
   it('merges and ranks the current YouTube result collections', () => {
-    const value = normalizeYouTube({
+    const value = normalizeAisaYouTube({
       data: {
         search_metadata: { id: 'youtube-search-id' },
         pagination: { next_page_token: 'next' },
@@ -120,6 +122,7 @@ describe('AIsa response normalization', () => {
       },
     }, 2, TEST_CONFIG)
 
+    expect(value.provider).toBe('aisa')
     expect(value.requestId).toBe('youtube-search-id')
     expect(value.truncated).toBe(true)
     expect(value.results.map(result => [result.kind, result.title]))
@@ -131,7 +134,7 @@ describe('AIsa response normalization', () => {
   })
 
   it('normalizes Scholar query results and Tavily extraction failures', () => {
-    const scholar = normalizeScholar({
+    const scholar = normalizeAisaScholar({
       data: {
         id: 'scholar-id',
         results: [{
@@ -143,6 +146,7 @@ describe('AIsa response normalization', () => {
       },
     }, 3, TEST_CONFIG)
     expect(scholar).toMatchObject({
+      provider: 'aisa',
       source: 'scholar',
       requestId: 'scholar-id',
       results: [{
@@ -155,7 +159,7 @@ describe('AIsa response normalization', () => {
       }],
     })
 
-    const extract = normalizeExtract({
+    const extract = normalizeTavilyExtract('aisa', {
       data: {
         request_id: 'extract-id',
         results: [{
@@ -173,9 +177,10 @@ describe('AIsa response normalization', () => {
       truncated: true,
     })
     expect(extract.documents[0]?.content).toHaveLength(1_000)
+    expect(extract.provider).toBe('aisa')
     expect(extract.failures).toEqual([{
       url: 'https://example.com/unavailable',
-      error: 'AIsa could not extract this URL',
+      error: 'aisa could not extract this URL',
     }])
   })
 })

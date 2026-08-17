@@ -11,7 +11,7 @@ installable DSH bundle.
 
 | Plugin | Description | Status |
 | --- | --- | --- |
-| [Easy Search](plugins/easy-search) | Web, X, YouTube, Scholar search and page extraction | Preview |
+| [Easy Search](plugins/easy-search) | AIsa One Key or BYOK search across Web, X, YouTube, and Scholar | Preview |
 
 Machine-readable category, tag, package, and source-path metadata lives in
 `catalog.json`. Categories organize discovery without becoming part of a

@@ -1,13 +1,8 @@
 import { isIP } from 'node:net'
 import type { ResolvedConfig } from './config.ts'
-import { AisaClient, type AisaOperation } from './client.ts'
-import {
-  normalizeExtract,
-  normalizeScholar,
-  normalizeWeb,
-  normalizeX,
-  normalizeYouTube,
-} from './normalize.ts'
+import type { ProviderOperation } from './providers/contracts.ts'
+import { EasySearchProviderClient } from './providers/router.ts'
+import { providerFromError } from './providers/runtime.ts'
 import {
   SEARCH_SOURCES,
   WEB_DEPTHS,
@@ -171,6 +166,7 @@ function errorMessage(reason: unknown): string {
 function successfulCoverage(result: SourceSearchResult): SourceCoverage {
   return {
     source: result.source,
+    provider: result.provider,
     status: 'ok',
     resultCount: result.results.length,
     ...result.requestId === undefined ? {} : { requestId: result.requestId },
@@ -178,8 +174,10 @@ function successfulCoverage(result: SourceSearchResult): SourceCoverage {
 }
 
 function failedCoverage(source: SearchSource, reason: unknown): SourceCoverage {
+  const provider = providerFromError(reason)
   return {
     source,
+    ...provider === undefined ? {} : { provider },
     status: 'error',
     resultCount: 0,
     error: errorMessage(reason),
@@ -188,16 +186,16 @@ function failedCoverage(source: SearchSource, reason: unknown): SourceCoverage {
 
 export class EasySearchService {
   constructor(
-    private readonly client: AisaClient,
+    private readonly providers: EasySearchProviderClient,
     private readonly config: () => ResolvedConfig,
   ) {}
 
   async search(options: SearchOptions, signal: AbortSignal): Promise<EasySearchResult> {
     const config = this.config()
     const input = parseSearchOptions(options, config)
-    const operation = await this.client.start()
+    const operation = this.providers.start()
     const settled = await Promise.allSettled(
-      input.sources.map(source => this.searchSource(operation, source, input, signal, config)),
+      input.sources.map(source => this.searchSource(operation, source, input, signal)),
     )
 
     const coverage: SourceCoverage[] = []
@@ -228,44 +226,16 @@ export class EasySearchService {
 
   async extract(options: ExtractOptions, signal: AbortSignal): Promise<EasyExtractResult> {
     const input = parseExtractOptions(options)
-    const operation = await this.client.start()
-    const response = await operation.extract(input.urls, input.depth, signal)
-    return normalizeExtract(response, this.config())
+    const operation = this.providers.start()
+    return await operation.extract(input, signal)
   }
 
-  private async searchSource(
-    operation: AisaOperation,
+  private searchSource(
+    operation: ProviderOperation,
     source: SearchSource,
     input: EasySearchInput,
     signal: AbortSignal,
-    config: ResolvedConfig,
   ): Promise<SourceSearchResult> {
-    switch (source) {
-      case 'web':
-        return normalizeWeb(await operation.searchWeb({
-          query: input.query,
-          searchDepth: input.webDepth,
-          maxResults: input.maxResults,
-          ...input.webCountry === undefined ? {} : { country: input.webCountry },
-        }, signal), input.maxResults, config)
-      case 'x':
-        return normalizeX(await operation.searchX({
-          query: input.query,
-          order: input.xOrder,
-        }, signal), input.maxResults, config)
-      case 'youtube':
-        return normalizeYouTube(await operation.searchYouTube({
-          query: input.query,
-          ...input.youtubeRegion === undefined ? {} : { region: input.youtubeRegion },
-          ...input.youtubeLanguage === undefined ? {} : { language: input.youtubeLanguage },
-        }, signal), input.maxResults, config)
-      case 'scholar':
-        return normalizeScholar(await operation.searchScholar({
-          query: input.query,
-          maxResults: input.maxResults,
-          ...input.yearFrom === undefined ? {} : { yearFrom: input.yearFrom },
-          ...input.yearTo === undefined ? {} : { yearTo: input.yearTo },
-        }, signal), input.maxResults, config)
-    }
+    return operation.search(source, input, signal)
   }
 }

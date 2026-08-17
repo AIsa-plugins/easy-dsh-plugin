@@ -30,6 +30,7 @@ const SEARCH_OUTPUT_SCHEMA = {
         additionalProperties: false,
         properties: {
           source: { type: 'string', required: true, enum: ['web', 'x', 'youtube', 'scholar'] },
+          provider: { type: 'string', enum: ['aisa', 'tavily', 'x', 'youtube', 'serpapi'] },
           status: { type: 'string', required: true, enum: ['ok', 'error'] },
           resultCount: { type: 'integer', required: true },
           requestId: { type: 'string' },
@@ -75,6 +76,7 @@ const EXTRACT_OUTPUT_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   properties: {
+    provider: { type: 'string', required: true, enum: ['aisa', 'tavily'] },
     documents: {
       type: 'array',
       required: true,
@@ -244,7 +246,7 @@ function presentExtractResult(result: ToolResult): WebFetchResultView | undefine
 export function createEasySearchTool(service: EasySearchService) {
   return defineTool({
     name: 'easy_search',
-    description: 'Search one topic across selected AIsa sources in parallel. Choose only the sources relevant to the question. Returns citeable URLs and per-source coverage.',
+    description: 'Search one topic across selected sources in parallel. Choose only the sources relevant to the question. Returns citeable URLs and per-source coverage.',
     parameters: {
       query: { type: 'string', required: true, description: 'Focused search query.' },
       sources: {
@@ -302,7 +304,7 @@ export function createEasySearchTool(service: EasySearchService) {
 export function createEasyExtractTool(service: EasySearchService) {
   return defineTool({
     name: 'easy_extract',
-    description: 'Extract clean markdown from one to three known public HTTP(S) URLs through AIsa. Use after search when full page content is needed.',
+    description: 'Extract clean markdown from one to three known public HTTP(S) URLs through the configured provider. Use after search when full page content is needed.',
     parameters: {
       urls: {
         type: 'array',
@@ -329,6 +331,7 @@ export function createEasyExtractTool(service: EasySearchService) {
         ...args.depth === undefined ? {} : { depth: args.depth },
       }, exec.signal)
       return {
+        provider: outcome.provider,
         documents: [...outcome.documents],
         failures: [...outcome.failures],
         ...outcome.requestId === undefined ? {} : { requestId: outcome.requestId },

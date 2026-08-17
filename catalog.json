@@ -11,7 +11,7 @@
     {
       "id": "easy-search",
       "name": "Easy Search",
-      "description": "Search the web, X, YouTube, and Scholar, then extract public pages.",
+      "description": "Search and extract through AIsa One Key, direct provider keys, or hybrid routing.",
       "category": "search",
       "tags": [
         "web",
@@ -19,7 +19,8 @@
         "youtube",
         "scholar",
         "research",
-        "data-extraction"
+        "data-extraction",
+        "byok"
       ],
       "status": "preview",
       "path": "plugins/easy-search",

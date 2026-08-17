@@ -1,3 +1,7 @@
+export const PROVIDER_IDS = ['aisa', 'tavily', 'x', 'youtube', 'serpapi'] as const
+export type ProviderId = typeof PROVIDER_IDS[number]
+export type ExtractProviderId = Extract<ProviderId, 'aisa' | 'tavily'>
+
 export const SEARCH_SOURCES = ['web', 'x', 'youtube', 'scholar'] as const
 export type SearchSource = typeof SEARCH_SOURCES[number]
 
@@ -44,6 +48,7 @@ export interface SearchResult {
 
 export interface SourceCoverage {
   readonly source: SearchSource
+  readonly provider?: ProviderId
   readonly status: 'ok' | 'error'
   readonly resultCount: number
   readonly requestId?: string
@@ -60,6 +65,7 @@ export interface EasySearchResult {
 
 export interface SourceSearchResult {
   readonly source: SearchSource
+  readonly provider: ProviderId
   readonly results: readonly SearchResult[]
   readonly truncated: boolean
   readonly requestId?: string
@@ -84,12 +90,13 @@ export interface ExtractionFailure {
 }
 
 export interface EasyExtractResult {
+  readonly provider: ExtractProviderId
   readonly documents: readonly ExtractedDocument[]
   readonly failures: readonly ExtractionFailure[]
   readonly requestId?: string
 }
 
-export interface AisaResponse {
+export interface ProviderResponse {
   readonly data: unknown
   readonly requestId?: string
 }

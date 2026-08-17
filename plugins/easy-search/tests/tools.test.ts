@@ -18,8 +18,8 @@ const searchValue: EasySearchResult = {
   answer: 'Grounded answer',
   truncated: true,
   coverage: [
-    { source: 'web', status: 'ok', resultCount: 1, requestId: 'web-id' },
-    { source: 'x', status: 'error', resultCount: 0, error: 'temporarily unavailable' },
+    { source: 'web', provider: 'tavily', status: 'ok', resultCount: 1, requestId: 'web-id' },
+    { source: 'x', provider: 'x', status: 'error', resultCount: 0, error: 'temporarily unavailable' },
   ],
   results: [{
     source: 'web',
@@ -99,6 +99,7 @@ describe('Easy Search tool presentation', () => {
 describe('Easy Extract tool presentation', () => {
   it('uses a fetch card only when one document maps to one URL', () => {
     const value: EasyExtractResult = {
+      provider: 'tavily',
       requestId: 'extract-id',
       documents: [{
         url: 'https://example.com/page',

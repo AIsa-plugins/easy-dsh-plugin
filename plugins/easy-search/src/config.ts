@@ -1,7 +1,14 @@
 import z from '@deepseek-ai/schemastery'
 
-export const DEFAULT_BASE_URL = 'https://api.aisa.one'
-export const DEFAULT_API_KEY_ENV = 'AISA_API_KEY'
+export const DEFAULT_AISA_BASE_URL = 'https://api.aisa.one'
+export const ROUTING_MODES = ['aisa', 'byok', 'hybrid'] as const
+export type RoutingMode = typeof ROUTING_MODES[number]
+export const DEFAULT_ROUTING_MODE: RoutingMode = 'aisa'
+export const DEFAULT_AISA_API_KEY_ENV = 'AISA_API_KEY'
+export const DEFAULT_TAVILY_API_KEY_ENV = 'TAVILY_API_KEY'
+export const DEFAULT_X_BEARER_TOKEN_ENV = 'X_BEARER_TOKEN'
+export const DEFAULT_YOUTUBE_API_KEY_ENV = 'YOUTUBE_API_KEY'
+export const DEFAULT_SERPAPI_API_KEY_ENV = 'SERPAPI_API_KEY'
 export const DEFAULT_REQUEST_TIMEOUT_MS = 30_000
 export const MAX_REQUEST_TIMEOUT_MS = 120_000
 export const DEFAULT_MAX_RESPONSE_BYTES = 5 * 1024 * 1024
@@ -11,8 +18,13 @@ export const DEFAULT_MAX_SNIPPET_CHARS = 1_200
 export const DEFAULT_MAX_EXTRACT_CHARS = 100_000
 
 export interface Config {
-  readonly apiKeyEnv?: string
-  readonly baseUrl?: string
+  readonly routingMode?: RoutingMode
+  readonly aisaApiKeyEnv?: string
+  readonly aisaBaseUrl?: string
+  readonly tavilyApiKeyEnv?: string
+  readonly xBearerTokenEnv?: string
+  readonly youtubeApiKeyEnv?: string
+  readonly serpApiKeyEnv?: string
   readonly requestTimeoutMs?: number
   readonly maxResponseBytes?: number
   readonly defaultMaxResults?: number
@@ -22,8 +34,15 @@ export interface Config {
 }
 
 export interface ResolvedConfig {
-  readonly apiKeyEnv: string
-  readonly baseUrl: string
+  readonly routingMode: RoutingMode
+  readonly credentials: {
+    readonly aisa: string
+    readonly tavily: string
+    readonly x: string
+    readonly youtube: string
+    readonly serpapi: string
+  }
+  readonly aisaBaseUrl: string
   readonly requestTimeoutMs: number
   readonly maxResponseBytes: number
   readonly defaultMaxResults: number
@@ -33,8 +52,13 @@ export interface ResolvedConfig {
 }
 
 export const Config: z<Config> = z.object({
-  apiKeyEnv: z.string().role('credential-ref').default(DEFAULT_API_KEY_ENV),
-  baseUrl: z.string().default(DEFAULT_BASE_URL),
+  routingMode: z.union(ROUTING_MODES).default(DEFAULT_ROUTING_MODE),
+  aisaApiKeyEnv: z.string().role('credential-ref').default(DEFAULT_AISA_API_KEY_ENV),
+  aisaBaseUrl: z.string().default(DEFAULT_AISA_BASE_URL),
+  tavilyApiKeyEnv: z.string().role('credential-ref').default(DEFAULT_TAVILY_API_KEY_ENV),
+  xBearerTokenEnv: z.string().role('credential-ref').default(DEFAULT_X_BEARER_TOKEN_ENV),
+  youtubeApiKeyEnv: z.string().role('credential-ref').default(DEFAULT_YOUTUBE_API_KEY_ENV),
+  serpApiKeyEnv: z.string().role('credential-ref').default(DEFAULT_SERPAPI_API_KEY_ENV),
   requestTimeoutMs: z.number().step(1).min(1).max(MAX_REQUEST_TIMEOUT_MS).default(DEFAULT_REQUEST_TIMEOUT_MS),
   maxResponseBytes: z.number().step(1).min(1).max(20 * 1024 * 1024).default(DEFAULT_MAX_RESPONSE_BYTES),
   defaultMaxResults: z.number().step(1).min(1).max(20).default(DEFAULT_MAX_RESULTS),
@@ -52,19 +76,26 @@ function integerBetween(name: string, value: number, minimum: number, maximum: n
 }
 
 function origin(value: string): string {
-  if (!URL.canParse(value)) throw new Error('easy-search: baseUrl must be an HTTP(S) origin')
+  if (!URL.canParse(value)) throw new Error('easy-search: aisaBaseUrl must be an HTTP(S) origin')
   const url = new URL(value)
   const hasRootOnly = url.pathname === '/' && url.search === '' && url.hash === ''
   if (!['http:', 'https:'].includes(url.protocol) || url.username !== '' || url.password !== '' || !hasRootOnly) {
-    throw new Error('easy-search: baseUrl must be an HTTP(S) origin without credentials, path, query, or fragment')
+    throw new Error('easy-search: aisaBaseUrl must be an HTTP(S) origin without credentials, path, query, or fragment')
   }
   return url.origin
 }
 
 export function resolveConfig(config: Config = {}): ResolvedConfig {
   const resolved: ResolvedConfig = {
-    apiKeyEnv: config.apiKeyEnv ?? DEFAULT_API_KEY_ENV,
-    baseUrl: origin(config.baseUrl ?? DEFAULT_BASE_URL),
+    routingMode: config.routingMode ?? DEFAULT_ROUTING_MODE,
+    credentials: {
+      aisa: config.aisaApiKeyEnv ?? DEFAULT_AISA_API_KEY_ENV,
+      tavily: config.tavilyApiKeyEnv ?? DEFAULT_TAVILY_API_KEY_ENV,
+      x: config.xBearerTokenEnv ?? DEFAULT_X_BEARER_TOKEN_ENV,
+      youtube: config.youtubeApiKeyEnv ?? DEFAULT_YOUTUBE_API_KEY_ENV,
+      serpapi: config.serpApiKeyEnv ?? DEFAULT_SERPAPI_API_KEY_ENV,
+    },
+    aisaBaseUrl: origin(config.aisaBaseUrl ?? DEFAULT_AISA_BASE_URL),
     requestTimeoutMs: integerBetween(
       'requestTimeoutMs',
       config.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
@@ -97,8 +128,10 @@ export function resolveConfig(config: Config = {}): ResolvedConfig {
       1_000_000,
     ),
   }
-  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(resolved.apiKeyEnv)) {
-    throw new Error('easy-search: apiKeyEnv must be a POSIX environment-variable name')
+  for (const [provider, reference] of Object.entries(resolved.credentials)) {
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(reference)) {
+      throw new Error('easy-search: ' + provider + ' credential must be a POSIX environment-variable name')
+    }
   }
   if (resolved.defaultMaxResults > resolved.maxResults) {
     throw new Error('easy-search: defaultMaxResults cannot exceed maxResults')

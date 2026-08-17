@@ -1,9 +1,16 @@
 import z from "@deepseek-ai/schemastery";
 import { Context } from "@deepseek-ai/cordis";
 //#region src/config.d.ts
+declare const ROUTING_MODES: readonly ["aisa", "byok", "hybrid"];
+type RoutingMode = typeof ROUTING_MODES[number];
 interface Config {
-  readonly apiKeyEnv?: string;
-  readonly baseUrl?: string;
+  readonly routingMode?: RoutingMode;
+  readonly aisaApiKeyEnv?: string;
+  readonly aisaBaseUrl?: string;
+  readonly tavilyApiKeyEnv?: string;
+  readonly xBearerTokenEnv?: string;
+  readonly youtubeApiKeyEnv?: string;
+  readonly serpApiKeyEnv?: string;
   readonly requestTimeoutMs?: number;
   readonly maxResponseBytes?: number;
   readonly defaultMaxResults?: number;
@@ -12,8 +19,15 @@ interface Config {
   readonly maxExtractChars?: number;
 }
 interface ResolvedConfig {
-  readonly apiKeyEnv: string;
-  readonly baseUrl: string;
+  readonly routingMode: RoutingMode;
+  readonly credentials: {
+    readonly aisa: string;
+    readonly tavily: string;
+    readonly x: string;
+    readonly youtube: string;
+    readonly serpapi: string;
+  };
+  readonly aisaBaseUrl: string;
   readonly requestTimeoutMs: number;
   readonly maxResponseBytes: number;
   readonly defaultMaxResults: number;
@@ -24,6 +38,9 @@ interface ResolvedConfig {
 declare const Config: z<Config>;
 //#endregion
 //#region src/types.d.ts
+declare const PROVIDER_IDS: readonly ["aisa", "tavily", "x", "youtube", "serpapi"];
+type ProviderId = typeof PROVIDER_IDS[number];
+type ExtractProviderId = Extract<ProviderId, 'aisa' | 'tavily'>;
 declare const SEARCH_SOURCES: readonly ["web", "x", "youtube", "scholar"];
 type SearchSource = typeof SEARCH_SOURCES[number];
 declare const WEB_DEPTHS: readonly ["basic", "advanced", "fast", "ultra-fast"];
@@ -63,6 +80,7 @@ interface SearchResult {
 }
 interface SourceCoverage {
   readonly source: SearchSource;
+  readonly provider?: ProviderId;
   readonly status: 'ok' | 'error';
   readonly resultCount: number;
   readonly requestId?: string;
@@ -77,6 +95,7 @@ interface EasySearchResult {
 }
 interface SourceSearchResult {
   readonly source: SearchSource;
+  readonly provider: ProviderId;
   readonly results: readonly SearchResult[];
   readonly truncated: boolean;
   readonly requestId?: string;
@@ -97,11 +116,12 @@ interface ExtractionFailure {
   readonly error: string;
 }
 interface EasyExtractResult {
+  readonly provider: ExtractProviderId;
   readonly documents: readonly ExtractedDocument[];
   readonly failures: readonly ExtractionFailure[];
   readonly requestId?: string;
 }
-interface AisaResponse {
+interface ProviderResponse {
   readonly data: unknown;
   readonly requestId?: string;
 }
@@ -127,29 +147,25 @@ interface ScholarSearchRequest {
   readonly yearTo?: number;
 }
 //#endregion
-//#region src/client.d.ts
-interface AisaClientOptions {
+//#region src/providers/contracts.d.ts
+interface ProviderOperation {
+  search(source: SearchSource, input: EasySearchInput, signal: AbortSignal): Promise<SourceSearchResult>;
+  extract(input: EasyExtractInput, signal: AbortSignal): Promise<EasyExtractResult>;
+}
+//#endregion
+//#region src/providers/runtime.d.ts
+type CredentialResolver = (reference: string) => Promise<string | undefined>;
+//#endregion
+//#region src/providers/router.d.ts
+interface EasySearchProviderClientOptions {
   readonly config: () => ResolvedConfig;
-  readonly resolveApiKey: (reference: string) => Promise<string | undefined>;
+  readonly resolveCredential: CredentialResolver;
   readonly fetchImpl?: typeof fetch;
 }
-declare class AisaClient {
+declare class EasySearchProviderClient {
   private readonly options;
-  private readonly fetchImpl;
-  constructor(options: AisaClientOptions);
-  start(): Promise<AisaOperation>;
-}
-declare class AisaOperation {
-  private readonly config;
-  private readonly apiKey;
-  private readonly fetchImpl;
-  constructor(config: ResolvedConfig, apiKey: string, fetchImpl: typeof fetch);
-  searchWeb(request: WebSearchRequest, signal: AbortSignal): Promise<AisaResponse>;
-  searchX(request: XSearchRequest, signal: AbortSignal): Promise<AisaResponse>;
-  searchYouTube(request: YouTubeSearchRequest, signal: AbortSignal): Promise<AisaResponse>;
-  searchScholar(request: ScholarSearchRequest, signal: AbortSignal): Promise<AisaResponse>;
-  extract(urls: readonly string[], depth: 'basic' | 'advanced', signal: AbortSignal): Promise<AisaResponse>;
-  private request;
+  constructor(options: EasySearchProviderClientOptions);
+  start(): ProviderOperation;
 }
 //#endregion
 //#region src/search.d.ts
@@ -173,9 +189,9 @@ declare function parseSearchOptions(options: SearchOptions, config: ResolvedConf
 declare function publicUrl(raw: string): string;
 declare function parseExtractOptions(options: ExtractOptions): EasyExtractInput;
 declare class EasySearchService {
-  private readonly client;
+  private readonly providers;
   private readonly config;
-  constructor(client: AisaClient, config: () => ResolvedConfig);
+  constructor(providers: EasySearchProviderClient, config: () => ResolvedConfig);
   search(options: SearchOptions, signal: AbortSignal): Promise<EasySearchResult>;
   extract(options: ExtractOptions, signal: AbortSignal): Promise<EasyExtractResult>;
   private searchSource;
@@ -187,5 +203,5 @@ declare const inject: string[];
 declare const EASY_SEARCH_SETTINGS_NAMESPACE: import("@deepseek-ai/dsh-settings").SettingsNamespace;
 declare function apply(ctx: Context, config?: Config): void;
 //#endregion
-export { AisaResponse, Config, type Config as EasySearchConfig, EASY_SEARCH_SETTINGS_NAMESPACE, EasyExtractInput, EasyExtractResult, EasySearchInput, EasySearchResult, EasySearchService, ExtractedDocument, ExtractionFailure, type ResolvedConfig, SEARCH_SOURCES, ScholarSearchRequest, SearchMetrics, SearchResult, SearchResultKind, SearchSource, SourceCoverage, SourceSearchResult, WEB_DEPTHS, WebDepth, WebSearchRequest, XOrder, XSearchRequest, X_ORDERS, YouTubeSearchRequest, apply, inject, name, parseExtractOptions, parseSearchOptions, publicUrl };
+export { Config, type Config as EasySearchConfig, EASY_SEARCH_SETTINGS_NAMESPACE, EasyExtractInput, EasyExtractResult, EasySearchInput, EasySearchResult, EasySearchService, ExtractProviderId, ExtractedDocument, ExtractionFailure, PROVIDER_IDS, ProviderId, ProviderResponse, type ResolvedConfig, SEARCH_SOURCES, ScholarSearchRequest, SearchMetrics, SearchResult, SearchResultKind, SearchSource, SourceCoverage, SourceSearchResult, WEB_DEPTHS, WebDepth, WebSearchRequest, XOrder, XSearchRequest, X_ORDERS, YouTubeSearchRequest, apply, inject, name, parseExtractOptions, parseSearchOptions, publicUrl };
 //# sourceMappingURL=index.d.ts.map

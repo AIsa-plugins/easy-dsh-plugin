@@ -11,7 +11,7 @@ import {
   resolveConfig,
   type Config as PluginConfig,
 } from './config.ts'
-import { AisaClient } from './client.ts'
+import { EasySearchProviderClient } from './providers/router.ts'
 import { EasySearchService } from './search.ts'
 import { registerEasySearchTools } from './tools.ts'
 
@@ -44,9 +44,9 @@ export function apply(ctx: Context, config: PluginConfig = {}): void {
   })
 
   const resolved = () => resolveConfig(current())
-  const client = new AisaClient({
+  const client = new EasySearchProviderClient({
     config: resolved,
-    resolveApiKey: async (reference) =>
+    resolveCredential: async (reference) =>
       (await ctx.credentials.resolve(credentialRef(reference)))?.value,
   })
   registerEasySearchTools(ctx, new EasySearchService(client, resolved))

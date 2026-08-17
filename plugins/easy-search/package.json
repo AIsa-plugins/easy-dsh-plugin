@@ -1,7 +1,7 @@
 {
   "name": "@aisa-plugins/easy-search",
-  "version": "0.1.0",
-  "description": "Multi-source search and extraction tools for DeepSeek Harness",
+  "version": "0.2.0",
+  "description": "Provider-neutral search and extraction tools for DeepSeek Harness",
   "type": "module",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
@@ -35,6 +35,9 @@
     "dsh",
     "dsh-plugin",
     "aisa",
+    "byok",
+    "tavily",
+    "serpapi",
     "search",
     "research",
     "web-search"

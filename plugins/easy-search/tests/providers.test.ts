@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { AisaClient, readText } from '../src/client.ts'
+import { EasySearchProviderClient } from '../src/providers/router.ts'
+import { readText } from '../src/providers/runtime.ts'
 import { jsonResponse, TEST_CONFIG } from './helpers.ts'
 
 interface CapturedRequest {
@@ -11,7 +12,7 @@ function urlOf(input: URL | RequestInfo): URL {
   return new URL(input instanceof Request ? input.url : String(input))
 }
 
-describe('AisaClient', () => {
+describe('EasySearchProviderClient', () => {
   it('uses the current Scholar and YouTube HTTP contracts with one credential snapshot', async () => {
     const requests: CapturedRequest[] = []
     const fetchImpl = (async (input: URL | RequestInfo, init?: RequestInit) => {
@@ -19,9 +20,9 @@ describe('AisaClient', () => {
       return jsonResponse({ results: [] }, 200, { 'x-request-id': 'request-1' })
     }) as typeof fetch
     let credentialResolutions = 0
-    const client = new AisaClient({
+    const client = new EasySearchProviderClient({
       config: () => TEST_CONFIG,
-      resolveApiKey: async reference => {
+      resolveCredential: async reference => {
         expect(reference).toBe('TEST_AISA_API_KEY')
         credentialResolutions += 1
         return 'top-secret'
@@ -29,29 +30,34 @@ describe('AisaClient', () => {
       fetchImpl,
     })
 
-    const operation = await client.start()
+    const operation = client.start()
     const signal = new AbortController().signal
-    const scholar = await operation.searchScholar({
+    const input = {
       query: 'agent systems',
+      sources: ['scholar', 'youtube'] as const,
       maxResults: 7,
+      webDepth: 'basic' as const,
+      xOrder: 'Latest' as const,
+      youtubeRegion: 'US',
+      youtubeLanguage: 'en',
       yearFrom: 2021,
       yearTo: 2026,
-    }, signal)
-    await operation.searchYouTube({
-      query: 'agent systems',
-      region: 'US',
-      language: 'en',
-    }, signal)
+    }
+    const scholar = await operation.search('scholar', input, signal)
+    await operation.search('youtube', input, signal)
 
     expect(credentialResolutions).toBe(1)
     const [scholarRequest, youtubeRequest] = requests
     expect(scholarRequest?.url.pathname).toBe('/apis/v1/scholar/search/web')
-    expect(scholarRequest?.url.searchParams.get('query')).toBe('agent systems')
+    expect(scholarRequest?.url.searchParams.has('query')).toBe(false)
     expect(scholarRequest?.url.searchParams.get('max_num_results')).toBe('7')
     expect(scholarRequest?.url.searchParams.get('as_ylo')).toBe('2021')
     expect(scholarRequest?.url.searchParams.get('as_yhi')).toBe('2026')
     expect(scholarRequest?.init.method).toBe('POST')
-    expect(scholarRequest?.init.body).toBeUndefined()
+    expect(new Headers(scholarRequest?.init.headers).get('content-type'))
+      .toBe('application/x-www-form-urlencoded')
+    expect(new URLSearchParams(String(scholarRequest?.init.body)).get('query'))
+      .toBe('agent systems')
 
     expect(youtubeRequest?.url.pathname).toBe('/apis/v1/youtube/search')
     expect(youtubeRequest?.url.searchParams.get('engine')).toBe('youtube')
@@ -70,16 +76,23 @@ describe('AisaClient', () => {
 
   it('requires a configured credential before sending traffic', async () => {
     let called = false
-    const client = new AisaClient({
+    const client = new EasySearchProviderClient({
       config: () => TEST_CONFIG,
-      resolveApiKey: async () => '   ',
+      resolveCredential: async () => '   ',
       fetchImpl: (async () => {
         called = true
         return jsonResponse({})
       }) as typeof fetch,
     })
 
-    await expect(client.start()).rejects.toThrow(/is not configured/)
+    const operation = client.start()
+    await expect(operation.search('web', {
+      query: 'agent systems',
+      sources: ['web'],
+      maxResults: 3,
+      webDepth: 'basic',
+      xOrder: 'Latest',
+    }, new AbortController().signal)).rejects.toThrow(/is not configured/)
     expect(called).toBe(false)
   })
 })
@@ -89,7 +102,7 @@ describe('readText', () => {
     const declared = new Response('12345', {
       headers: { 'content-length': '5' },
     })
-    await expect(readText(declared, 4)).rejects.toThrow(/exceeded 4 bytes/)
+    await expect(readText(declared, 4)).rejects.toThrow(/larger than 4 bytes/)
 
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
@@ -98,7 +111,7 @@ describe('readText', () => {
       },
     })
     await expect(readText(new Response(stream), 4))
-      .rejects.toThrow(/exceeded 4 bytes/)
+      .rejects.toThrow(/larger than 4 bytes/)
   })
 
   it('decodes a response within the byte budget', async () => {

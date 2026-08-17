@@ -2,7 +2,12 @@
     - id: easy-search
       name: '@aisa-plugins/easy-search'
       config:
-        apiKeyEnv: AISA_API_KEY
-        baseUrl: https://api.aisa.one
+        routingMode: aisa
+        aisaApiKeyEnv: AISA_API_KEY
+        aisaBaseUrl: https://api.aisa.one
+        tavilyApiKeyEnv: TAVILY_API_KEY
+        xBearerTokenEnv: X_BEARER_TOKEN
+        youtubeApiKeyEnv: YOUTUBE_API_KEY
+        serpApiKeyEnv: SERPAPI_API_KEY
         defaultMaxResults: 5
         maxResults: 10

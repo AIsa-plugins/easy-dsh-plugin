@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AisaClient } from '../src/client.ts'
+import { EasySearchProviderClient } from '../src/providers/router.ts'
 import {
   EasySearchService,
   parseExtractOptions,
@@ -100,9 +100,9 @@ describe('EasySearchService', () => {
       }
       throw new Error('Unexpected test URL: ' + url.href)
     }) as typeof fetch
-    const client = new AisaClient({
+    const client = new EasySearchProviderClient({
       config: () => TEST_CONFIG,
-      resolveApiKey: async () => {
+      resolveCredential: async () => {
         credentialResolutions += 1
         return 'test-key'
       },
@@ -129,12 +129,14 @@ describe('EasySearchService', () => {
     expect(result.coverage).toEqual([
       {
         source: 'x',
+        provider: 'aisa',
         status: 'error',
         resultCount: 0,
-        error: 'AIsa request failed with HTTP status 503',
+        error: 'aisa request failed with HTTP status 503',
       },
       {
         source: 'web',
+        provider: 'aisa',
         status: 'ok',
         resultCount: 1,
         requestId: 'web-id',

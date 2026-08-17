@@ -1,19 +1,31 @@
 import { describe, expect, it } from 'vitest'
 import {
-  DEFAULT_API_KEY_ENV,
-  DEFAULT_BASE_URL,
+  DEFAULT_AISA_API_KEY_ENV,
+  DEFAULT_AISA_BASE_URL,
   DEFAULT_MAX_RESULTS,
+  DEFAULT_ROUTING_MODE,
+  DEFAULT_SERPAPI_API_KEY_ENV,
+  DEFAULT_TAVILY_API_KEY_ENV,
+  DEFAULT_X_BEARER_TOKEN_ENV,
+  DEFAULT_YOUTUBE_API_KEY_ENV,
   resolveConfig,
 } from '../src/config.ts'
 
 describe('resolveConfig', () => {
-  it('resolves defaults and canonicalizes an origin', () => {
+  it('resolves routing, credentials, and a canonical AIsa origin', () => {
     const defaults = resolveConfig()
-    expect(defaults.apiKeyEnv).toBe(DEFAULT_API_KEY_ENV)
-    expect(defaults.baseUrl).toBe(DEFAULT_BASE_URL)
+    expect(defaults.routingMode).toBe(DEFAULT_ROUTING_MODE)
+    expect(defaults.credentials).toEqual({
+      aisa: DEFAULT_AISA_API_KEY_ENV,
+      tavily: DEFAULT_TAVILY_API_KEY_ENV,
+      x: DEFAULT_X_BEARER_TOKEN_ENV,
+      youtube: DEFAULT_YOUTUBE_API_KEY_ENV,
+      serpapi: DEFAULT_SERPAPI_API_KEY_ENV,
+    })
+    expect(defaults.aisaBaseUrl).toBe(DEFAULT_AISA_BASE_URL)
     expect(defaults.defaultMaxResults).toBe(DEFAULT_MAX_RESULTS)
 
-    expect(resolveConfig({ baseUrl: 'https://example.com/' }).baseUrl)
+    expect(resolveConfig({ aisaBaseUrl: 'https://example.com/' }).aisaBaseUrl)
       .toBe('https://example.com')
   })
 
@@ -24,13 +36,20 @@ describe('resolveConfig', () => {
       'https://example.com/api',
       'https://example.com?debug=1',
     ]) {
-      expect(() => resolveConfig({ baseUrl: value })).toThrow(/HTTP\(S\) origin/)
+      expect(() => resolveConfig({ aisaBaseUrl: value })).toThrow(/HTTP\(S\) origin/)
     }
   })
 
   it('keeps credential references and result limits internally consistent', () => {
-    expect(() => resolveConfig({ apiKeyEnv: 'not-valid-key' }))
-      .toThrow(/POSIX environment-variable/)
+    for (const config of [
+      { aisaApiKeyEnv: 'not-valid-key' },
+      { tavilyApiKeyEnv: 'not-valid-key' },
+      { xBearerTokenEnv: 'not-valid-key' },
+      { youtubeApiKeyEnv: 'not-valid-key' },
+      { serpApiKeyEnv: 'not-valid-key' },
+    ]) {
+      expect(() => resolveConfig(config)).toThrow(/POSIX environment-variable/)
+    }
     expect(() => resolveConfig({ defaultMaxResults: 6, maxResults: 5 }))
       .toThrow(/cannot exceed/)
   })
