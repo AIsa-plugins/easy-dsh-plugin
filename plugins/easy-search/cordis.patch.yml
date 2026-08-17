@@ -1,0 +1,8 @@
+- insert:
+    - id: easy-search
+      name: '@aisa-plugins/easy-search'
+      config:
+        apiKeyEnv: AISA_API_KEY
+        baseUrl: https://api.aisa.one
+        defaultMaxResults: 5
+        maxResults: 10

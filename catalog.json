@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "categories": [
+    {
+      "id": "search",
+      "name": "Search & Data Extraction",
+      "description": "Find, retrieve, and normalize information from external sources."
+    }
+  ],
+  "plugins": [
+    {
+      "id": "easy-search",
+      "name": "Easy Search",
+      "description": "Search the web, X, YouTube, and Scholar, then extract public pages.",
+      "category": "search",
+      "tags": [
+        "web",
+        "x",
+        "youtube",
+        "scholar",
+        "research",
+        "data-extraction"
+      ],
+      "status": "preview",
+      "path": "plugins/easy-search",
+      "package": "@aisa-plugins/easy-search"
+    }
+  ]
+}
