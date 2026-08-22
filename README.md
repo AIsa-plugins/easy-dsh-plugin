@@ -54,6 +54,17 @@ pnpm --filter './plugins/**' --if-present run check
 
 The recursive check runs each plugin's own typecheck, tests, and build.
 
+## Releasing
+
+Plugins are versioned and published independently. After a plugin version
+change reaches `main`, tag that commit as `plugin/<id>/v<version>`. The shared
+publish workflow resolves the package through `catalog.json`, verifies that the
+tag matches its manifest, runs that plugin's checks, and publishes only that
+package through npm trusted publishing.
+
+Each npm package must authorize this repository's `publish.yml` workflow as its
+trusted publisher before its first automated release.
+
 ## Discovery
 
 GitHub's /topics/dsh-plugin page is populated from the repository's GitHub

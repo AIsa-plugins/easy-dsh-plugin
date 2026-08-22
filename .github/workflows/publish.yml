@@ -1,0 +1,56 @@
+name: Publish Plugin
+
+on:
+  push:
+    tags:
+      - 'plugin/*/v*'
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish tagged plugin
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Require a release commit from main
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.15.0
+          package-manager-cache: false
+
+      - name: Install OIDC-capable npm
+        run: npm install --global npm@12.0.2
+
+      - run: pnpm install --frozen-lockfile
+      - run: node scripts/validate-catalog.mjs
+
+      - name: Resolve release
+        id: release
+        run: node scripts/resolve-release.mjs "$GITHUB_REF_NAME"
+
+      - name: Check plugin
+        run: pnpm --filter "${{ steps.release.outputs.package_name }}" run check
+
+      - name: Verify committed build output
+        run: git diff --exit-code
+
+      - name: Publish plugin
+        run: >-
+          npm publish "${{ steps.release.outputs.package_path }}"
+          --access public
+          --registry=https://registry.npmjs.org

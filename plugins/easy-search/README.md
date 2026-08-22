@@ -34,18 +34,16 @@ and has no runtime dependency on the legacy AIsa marketplace plugin.
 
 ## Install
 
-### From GitHub
+### From npm
 
-Pin a reviewed commit for production:
+Install the published bundle into the profile that runs Harness:
 
 ~~~sh
-dsh plugin --profile web add \
-  "AIsa-plugins/easy-dsh-plugin#<commit>&path:/plugins/easy-search"
+dsh plugin --profile web add @aisa-plugins/easy-search
 dsh --profile web --dump-config
 ~~~
 
-The `path` parameter selects this package from the collection. Use another
-profile name if your Harness deployment does not use `web`.
+Use another profile name if your Harness deployment does not use `web`.
 
 ### From a source checkout
 

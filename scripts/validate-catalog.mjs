@@ -28,12 +28,15 @@ assert.deepEqual([...pluginIds].sort(), pluginDirectories, 'catalog and plugins 
 const categories = new Set(categoryIds)
 for (const plugin of catalog.plugins) {
   assert.match(plugin.id, /^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+  assert.match(plugin.package, /^@aisa-plugins\/[a-z0-9]+(?:-[a-z0-9]+)*$/)
   assert(categories.has(plugin.category), `unknown category: ${plugin.category}`)
   assert.equal(plugin.path, `plugins/${plugin.id}`)
 
   const manifest = await json(`${plugin.path}/package.json`)
   assert.equal(manifest.name, plugin.package, `package mismatch: ${plugin.id}`)
   assert.equal(manifest.dsh?.bundle?.patch, './cordis.patch.yml')
+  assert.equal(manifest.publishConfig?.access, 'public')
+  assert.equal(manifest.publishConfig?.registry, 'https://registry.npmjs.org')
 }
 
 console.log(`Validated ${pluginIds.length} plugin(s) in ${categoryIds.length} category(s).`)
